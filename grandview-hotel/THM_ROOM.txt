@@ -1,0 +1,309 @@
+TRYHACKME ROOM: GRANDVIEW HOTEL – WEB SECURITY CTF
+
+Room Title:
+Grandview Hotel: Web Security Assessment (OWASP Top 10)
+
+Difficulty:
+Medium
+
+Estimated Time:
+2–3 hours
+
+Room Summary:
+Assess the Grandview Hotel booking web application for common OWASP Top 10 vulnerabilities. Exploit SQL Injection, Broken Authentication, Cross-Site Scripting, and Insecure Direct Object Reference to retrieve flags. Submit flags in the format flag{...}.
+
+Learning Objectives:
+- Practice a structured methodology for web pentesting
+- Exploit SQL Injection for auth bypass and data exfiltration
+- Identify and exploit stored XSS
+- Discover and abuse IDOR to access unauthorized data
+- Evaluate impact and propose mitigations
+
+Prerequisites:
+- Basic web security knowledge
+- Familiarity with Burp Suite / Developer Tools
+- SQL Injection and XSS fundamentals
+
+Machine/Access:
+- Local deployment (XAMPP) or hosted by the room
+- Target URL: http://TARGET/grandview-hotel/
+
+Credentials (for testing only):
+- Admin: admin / admin123
+- Users: john_doe/password123, jane_smith/qwerty456, mike_wilson/letmein789
+
+Flag Format:
+flag{lowercase_underscored_words}
+
+Scoring (suggested):
+- Total: 7 flags = 650 points
+- SQLi: 3 flags (100 ea)
+- Info Disclosure: 2 flags (50 ea)
+- XSS: 1 flag (100)
+- IDOR: 1 flag (150)
+
+----------------------------------------
+SETUP (for room deployer)
+----------------------------------------
+If hosting inside the room:
+- Place repo under /var/www/html/grandview-hotel
+- Import database.sql into MySQL:
+  - DB: grandview_hotel
+  - User: root, no password (default lab)
+- Ensure PHP 7.4+ and Apache 2.4+, mod_php enabled
+- Test at http://TARGET/grandview-hotel/
+
+If users run locally (alt option):
+- XAMPP install (Windows)
+- Copy project to C:\xampp\htdocs\grandview-hotel
+- Import database.sql via http://localhost/phpmyadmin
+- Visit http://localhost/grandview-hotel/
+
+Instructor validation:
+- Confirm pages load: index, login, dashboard, search, feedback
+- Confirm admin login works
+- Confirm SQLi works on login and search
+- Confirm IDOR on dashboard
+- Confirm stored XSS via feedback
+
+----------------------------------------
+TASK 1: Reconnaissance & App Mapping
+----------------------------------------
+Description:
+Map the application. Identify key pages, parameters, and functionality.
+
+Pages to find:
+- /index.php, /login.php, /register.php, /dashboard.php, /search.php, /booking.php, /rooms.php, /feedback.php, /admin.php
+
+Hints:
+- Use browser DevTools to enumerate links/forms.
+- Start with index → navbar links.
+
+No flag for this task.
+
+----------------------------------------
+TASK 2: SQL Injection – Authentication Bypass (A03:2021)
+----------------------------------------
+Goal:
+Bypass the login without a valid password.
+
+Target:
+POST /login.php
+Parameters: username, password
+
+Method:
+- Payload example for username: admin'--
+- Any password value
+
+Expected Result:
+Login succeeds as admin.
+
+Flag:
+flag{weak_auth_bypass}
+
+Verification:
+Logged-in session with admin role; access to /admin.php available.
+
+Hints:
+- Comment out remainder of query with -- (plus preceding quote).
+- Error messages may leak SQL info.
+
+Mitigation (write-up requirement):
+- Use prepared statements, parameterized queries, no string concatenation.
+
+----------------------------------------
+TASK 3: SQL Injection – UNION Data Exfiltration (A03:2021)
+----------------------------------------
+Goal:
+Extract sensitive user data via search.
+
+Target:
+GET /search.php?q=<payload>
+
+Example Payload:
+' UNION SELECT username,password,email,phone,role,id,is_active,'user' FROM users--
+
+Steps:
+- Submit payload in the search field.
+- Observe user rows rendered in results.
+
+Flags:
+- flag{sqli_union_success} (footer comment on search page after interaction)
+- flag{user_enum_success} (password of user flag_user in users table)
+
+Hints:
+- Balance columns in UNION.
+- You can enumerate schema via information_schema.
+- Inspect page source for hidden comments.
+
+Mitigation (write-up requirement):
+- Prepared statements, whitelistable search fields, least-privilege DB account.
+
+----------------------------------------
+TASK 4: Information Disclosure – Config and Comments
+----------------------------------------
+Goal:
+Find hidden flags via source code and config disclosures.
+
+Targets:
+- config.php (comment)
+- index.php (HTML comment)
+
+Flags:
+- flag{config_exposure_found} (comment inside config.php)
+- flag{source_code_analysis} (HTML comment in index.php footer)
+
+Hints:
+- Review server-side files if accessible locally.
+- View page source on index.php for HTML comments.
+
+Mitigation (write-up requirement):
+- Remove secrets from code; secure configuration; disable verbose errors.
+
+----------------------------------------
+TASK 5: Broken Authentication – Weak Password Storage & Session (A07:2021)
+----------------------------------------
+Goal:
+Demonstrate weak password storage and session issues.
+
+Targets:
+- register.php (plain text password inserts)
+- login.php (no session regeneration, detailed DB errors)
+
+Evidence to collect:
+- Show plain text passwords via the SQLi from Task 3.
+- Demonstrate session ID not regenerating on login.
+
+No new flag here (use TASK 2 and TASK 4 flags as evidence).
+
+Hints:
+- Intercept traffic with Burp.
+- Compare PHPSESSID before/after login.
+
+Mitigation:
+- Hash passwords (bcrypt/Argon2), regen session on login, hide stack traces.
+
+----------------------------------------
+TASK 6: Stored XSS – Feedback System (A03:2021)
+----------------------------------------
+Goal:
+Achieve stored XSS that executes for all visitors.
+
+Targets:
+- Post feedback from /dashboard.php on a completed booking
+- View at /feedback.php
+
+Payload examples:
+<script>alert('Stored XSS')</script>
+<img src=x onerror=alert('XSS')>
+
+Flag:
+- flag{xss_feedback_stored} (present in feedback table or visible after exploitation)
+
+Hints:
+- Some sample feedback already contains a flag.
+- Inspect feedback list after posting payload.
+
+Mitigation:
+- Output encode with htmlspecialchars, consider CSP, validate inputs.
+
+----------------------------------------
+TASK 7: IDOR – Cross-User Data Access (A01:2021)
+----------------------------------------
+Goal:
+Access another user’s dashboard/booking details.
+
+Target:
+GET /dashboard.php?user_id=1 (or 2..5)
+
+Steps:
+- Login as john_doe.
+- Browse to /dashboard.php?user_id=5 to view another user.
+- Check bookings and special requests.
+
+Flag:
+- flag{idor_booking_access} (in special_requests of booking ID 4)
+
+Hints:
+- Predictable numeric IDs.
+- No authorization check ties user_id to session.
+
+Mitigation:
+- Enforce server-side authorization; use indirect references; RBAC.
+
+----------------------------------------
+SUBMISSION CHECKLIST (For Students)
+----------------------------------------
+- 7 flags submitted:
+  - flag{weak_auth_bypass}
+  - flag{sqli_union_success}
+  - flag{user_enum_success}
+  - flag{config_exposure_found}
+  - flag{source_code_analysis}
+  - flag{xss_feedback_stored}
+  - flag{idor_booking_access}
+- Short report including:
+  - Methodology (tools, steps, reasoning)
+  - Proof-of-concepts and severity ratings
+  - Impact and realistic mitigations
+  - Reflection on challenges and learning
+
+----------------------------------------
+ROOM PAGE CONTENT (What to include)
+----------------------------------------
+Room Banner:
+- “Grandview Hotel – Web Security”
+
+Room Description:
+- Brief story, objectives, rules (no destructive actions outside target).
+- Learning outcomes and expected skills.
+
+Getting Started:
+- Target URL, credentials, and general tips.
+- If local, link quick setup steps (XAMPP import).
+
+Tasks & Flags:
+- Add 7 tasks above as separate TryHackMe tasks.
+- Provide hints (collapsed).
+- Add “Answer” fields expecting exact flag strings.
+
+Resources:
+- Link to OWASP Top 10, PortSwigger Academy.
+
+Rules:
+- No scanning beyond the provided target.
+- Do not attack infrastructure.
+- Educational purpose only.
+
+----------------------------------------
+VALIDATION NOTES (For Room Creator)
+----------------------------------------
+- Ensure database.sql is imported.
+- Verify each flag is reachable:
+  - config.php comment exists: // flag{config_exposure_found}
+  - index.php contains HTML comment flag
+  - feedback table row includes flag{xss_feedback_stored}
+  - booking #4 special_requests has flag{idor_booking_access}
+  - search page footer comment flag{sqli_union_success}
+  - users table contains flag_user with password flag{user_enum_success}
+  - weak auth bypass demonstrated (accept flag{weak_auth_bypass})
+- Confirm admin.php accessible after SQLi bypass.
+- Keep errors visible (for educational purposes).
+
+----------------------------------------
+POST-ROOM REFLECTION (Optional Student Task)
+----------------------------------------
+- What was hardest to find and why?
+- Which mitigation would you prioritize and why?
+- How would you improve detection/monitoring?
+
+----------------------------------------
+END OF ROOM DEFINITION
+
+
+
+
+
+
+
+

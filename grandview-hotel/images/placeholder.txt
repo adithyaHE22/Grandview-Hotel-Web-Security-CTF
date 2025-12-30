@@ -1,0 +1,39 @@
+# Image Assets Placeholder
+
+This directory is intended for hotel room images and other visual assets.
+
+## Recommended Images
+
+For a complete experience, add the following images:
+
+### Room Images
+- `room101.jpg` - Single room with city view
+- `room102.jpg` - Double room with garden view  
+- `room201.jpg` - Luxury suite with living area
+- `room202.jpg` - Premium deluxe with ocean view
+- `room301.jpg` - Executive suite with conference area
+- `default-room.jpg` - Fallback image for missing room photos
+
+### Additional Assets
+- `hotel-exterior.jpg` - Hotel building exterior
+- `lobby.jpg` - Hotel lobby area
+- `restaurant.jpg` - Hotel restaurant
+- `amenities.jpg` - Hotel amenities showcase
+
+## Image Specifications
+- **Format:** JPEG or PNG
+- **Resolution:** 800x600 pixels minimum
+- **Size:** Under 1MB per image for web optimization
+- **Aspect Ratio:** 4:3 recommended for consistency
+
+## Note
+The application will work without images - placeholder images will be used automatically if files are missing.
+
+
+
+
+
+
+
+
+
