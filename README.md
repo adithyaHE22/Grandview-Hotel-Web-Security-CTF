@@ -1,5 +1,6 @@
 ## 🏨 Room Description – Grandview Hotel Web Security CTF
 
+**Room URL: https://tryhackme.com/jr/grandviewhotelctfescape
 **Grandview Hotel – Web Security CTF** is a hands-on TryHackMe room designed to simulate a **real-world web application security assessment**.  
 The room is built around a deliberately vulnerable hotel booking system that reflects **common security mistakes found in production web applications**.
 
